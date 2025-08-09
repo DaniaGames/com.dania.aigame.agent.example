@@ -4,7 +4,7 @@ using UnityEngine;
 namespace AIGame.Examples
 {
 
-    [CreateAssetMenu(menuName = "Factories/HardFactory")]
+    [CreateAssetMenu(menuName = "Factories/Hard Factory")]
     public class TestFactory : AgentFactory
     {
 

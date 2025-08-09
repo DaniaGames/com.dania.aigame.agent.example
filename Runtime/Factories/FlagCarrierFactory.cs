@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AIGame.Examples
 {
-    [CreateAssetMenu(menuName = "Factories/FlagCarrierFactory")]
+    [CreateAssetMenu(menuName = "Factories/Flag Carrier Factory")]
     class FlagCarrierFactory : AgentFactory
     {
         protected override BaseAI[] CreateAgents(GameObject agentPrefab)

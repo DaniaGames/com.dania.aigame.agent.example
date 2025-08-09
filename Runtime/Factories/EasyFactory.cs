@@ -3,7 +3,7 @@ using AIGame.Core;
 
 namespace AIGame.Examples
 {
-    [CreateAssetMenu(menuName = "Factories/EasyFactory")]
+    [CreateAssetMenu(menuName = "Factories/Easy Factory")]
     class EasyFactory : AgentFactory
     {
         protected override BaseAI[] CreateAgents(GameObject agentPrefab)
