@@ -1,0 +1,7 @@
+{
+    "name": "Dania.AI.AgentExample",
+    "references": [
+        "AIGame.Core"
+    ],
+    "autoReferenced": true
+}
