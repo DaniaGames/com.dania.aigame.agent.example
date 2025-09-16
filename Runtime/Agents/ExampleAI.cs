@@ -4,13 +4,14 @@ using AIGame.Core;
 namespace AIGame.Examples
 {
     /// <summary>
-    /// This is an example base class that all default AIs inherit from.
-    /// It provides functionality for switching states based on conditions.
+    /// Base class for example AI agents.
+    /// Provides a finite state machine implementation for switching between states
+    /// based on <see cref="AICondition"/> values.
     /// </summary>
     public abstract class ExampleAI : BaseAI
     {
         /// <summary>
-        /// Conditions for switching between states.
+        /// Represents the possible conditions that can trigger a state change.
         /// </summary>
         public enum AICondition
         {
@@ -28,23 +29,23 @@ namespace AIGame.Examples
         }
 
         /// <summary>
-        /// The current state the AI is in.
+        /// The current active state.
         /// </summary>
         protected ExampleAIState currentState;
 
         /// <summary>
-        /// A dictionary containing all state transitions.
-        /// Transitions define how the AI can switch from one state to another.
+        /// Maps a tuple of (current state, condition) to the next state.
         /// </summary>
         protected Dictionary<(ExampleAIState, AICondition), ExampleAIState> transitions = new();
 
         /// <summary>
-        /// The current active condition. The AI will swap state based on this value.
+        /// The condition currently set, which may trigger a state change.
         /// </summary>
         protected AICondition currentCondition = AICondition.None;
 
         /// <summary>
-        /// Executes the state machine logic.
+        /// Main update logic for the AI.
+        /// Runs once per frame as part of <see cref="BaseAI"/> execution.
         /// </summary>
         protected override void ExecuteAI()
         {
@@ -56,28 +57,28 @@ namespace AIGame.Examples
         }
 
         /// <summary>
-        /// Sets a condition so the AI can switch states.
-        /// For example, setting AICondition.Idle will make the AI transition into the idle state if such a transition exists.
+        /// Sets the current condition to be evaluated in the next update cycle.
         /// </summary>
-        /// <param name="condition">The condition to set, e.g., AICondition.Idle.</param>
+        /// <param name="condition">The new condition value.</param>
         protected void SetCondition(AICondition condition)
         {
             currentCondition = condition;
         }
 
         /// <summary>
-        /// Creates a transition between two states.
+        /// Adds a state transition rule.
         /// </summary>
-        /// <param name="from">The state to transition from.</param>
-        /// <param name="condition">The condition that must be met for the transition to occur.</param>
-        /// <param name="to">The state to transition to.</param>
+        /// <param name="from">The starting state.</param>
+        /// <param name="condition">The condition that triggers the change.</param>
+        /// <param name="to">The target state.</param>
         protected void AddTransition(ExampleAIState from, AICondition condition, ExampleAIState to)
         {
             transitions[(from, condition)] = to;
         }
 
         /// <summary>
-        /// Processes transitions by checking the current condition and changing the state if a matching transition exists.
+        /// Checks if the current state and condition match any registered transition rule.
+        /// Changes the state if a match is found.
         /// </summary>
         private void ProcessTransitions()
         {
@@ -88,15 +89,14 @@ namespace AIGame.Examples
         }
 
         /// <summary>
-        /// Changes the current state to a new one.
+        /// Changes the current state, calling <see cref="ExampleAIState.Exit"/> on the old state
+        /// and <see cref="ExampleAIState.Enter"/> on the new state.
         /// </summary>
-        /// <param name="newState">The state to change into.</param>
+        /// <param name="newState">The state to switch to.</param>
         protected virtual void ChangeState(ExampleAIState newState)
         {
             if (currentState != null)
-            {
                 currentState.Exit();
-            }
 
             currentState = newState;
             currentState.Enter();

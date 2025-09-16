@@ -7,25 +7,32 @@ using AIGame.Core;
 namespace AIGame.Examples
 {
     /// <summary>
-    /// This class shows how to use a finit state machine to create an AI with different states
+    /// Base class for AI states in a simple finite state machine.
+    /// Supports optional nested substates that are entered/executed/exited together.
     /// </summary>
     public abstract class ExampleAIState
     {
         /// <summary>
-        /// A reference to the agenmt that owns the state
+        /// The owning AI instance.
         /// </summary>
         protected ExampleAI parent;
 
         /// <summary>
-        /// The name of the state, this is just for debugging
+        /// Display name for debugging.
         /// </summary>
         public string Name { get; set; }
 
         /// <summary>
-        /// A list of substates, substates are states that execute as part of another state
+        /// Optional nested substates that run with this state.
         /// </summary>
         protected List<ExampleAIState> subStates;
 
+        /// <summary>
+        /// Creates a new state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        /// <param name="name">Debug name.</param>
+        /// <param name="substates">Optional substates.</param>
         public ExampleAIState(ExampleAI parent, string name, params ExampleAIState[] substates)
         {
             this.parent = parent;
@@ -34,89 +41,87 @@ namespace AIGame.Examples
         }
 
         /// <summary>
-        /// Enter is called whenever the AI enters this state
+        /// Called when entering this state.
+        /// Invokes <see cref="Enter"/> on all substates.
         /// </summary>
-        public virtual void Enter() 
+        public virtual void Enter()
         {
             if (subStates != null)
-            {
-                foreach (ExampleAIState state in subStates)
-                {
-                    state.Enter();
-                }
-            }  
+                foreach (var s in subStates) s.Enter();
         }
 
         /// <summary>
-        /// Exit is executed whenever the AI is done executing the state
+        /// Called when exiting this state.
+        /// Invokes <see cref="Exit"/> on all substates.
         /// </summary>
-        public virtual void Exit() 
+        public virtual void Exit()
         {
             if (subStates != null)
-            {
-                foreach (ExampleAIState state in subStates)
-                {
-                    state.Exit();
-                }
-            }
+                foreach (var s in subStates) s.Exit();
         }
 
         /// <summary>
-        /// Execute runs every update
+        /// Called every update while this state is active.
+        /// Invokes <see cref="Execute"/> on all substates.
         /// </summary>
-        public virtual void Execute() 
+        public virtual void Execute()
         {
             if (subStates != null)
-            {
-                foreach (ExampleAIState state in subStates)
-                {
-                    state.Execute();
-                }
-            }
+                foreach (var s in subStates) s.Execute();
         }
-
-
     }
 
     /// <summary>
-    /// A Simple idle state, that doesn't do anything
+    /// A no-op idle state.
     /// </summary>
     public class Idle : ExampleAIState
     {
-
-        public Idle(ExampleAI parent) : base(parent, "Idle")
-        {
-
-        }
+        /// <summary>
+        /// Creates an idle state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        public Idle(ExampleAI parent) : base(parent, "Idle") { }
     }
 
     /// <summary>
-    /// A state that moves to a given position
+    /// Base state for moving to a world position, raising an event on arrival.
     /// </summary>
     public abstract class MoveToPosition : ExampleAIState
     {
+        /// <summary>
+        /// Raised exactly once when the destination is reached.
+        /// </summary>
         public event Action DestinationReached;
 
+        /// <summary>Current target world position.</summary>
         protected Vector3 currentDestination;
+
+        /// <summary>True after arrival is detected.</summary>
         protected bool hasReachedDestination = false;
+
+        /// <summary>Distance threshold to consider arrival.</summary>
         protected const float ARRIVAL_THRESHOLD = 0.5f;
 
-        public MoveToPosition(ExampleAI parent, string name ,params ExampleAIState[] substates) : base(parent, name, substates)
-        {
+        /// <summary>
+        /// Creates a move state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        /// <param name="name">Debug name.</param>
+        /// <param name="substates">Optional substates.</param>
+        public MoveToPosition(ExampleAI parent, string name, params ExampleAIState[] substates)
+            : base(parent, name, substates) { }
 
-        }
-
+        /// <inheritdoc/>
         public override void Enter()
         {
             hasReachedDestination = false;
             base.Enter();
         }
 
+        /// <inheritdoc/>
         public override void Execute()
         {
             var agent = parent.NavMeshAgent;
-
-            // Skip if agent is dead, disabled, or no destination set
             if (!parent.IsAlive || !agent.enabled || !agent.isOnNavMesh)
                 return;
 
@@ -124,16 +129,11 @@ namespace AIGame.Examples
             {
                 bool arrived = false;
 
-                // Only consider arrival if there's an active path
                 if (agent.remainingDistance <= ARRIVAL_THRESHOLD)
-                {
                     arrived = true;
-                }
                 else if (!agent.pathPending && !agent.hasPath &&
                          Vector3.Distance(parent.transform.position, currentDestination) <= ARRIVAL_THRESHOLD)
-                {
                     arrived = true;
-                }
 
                 if (arrived)
                 {
@@ -147,68 +147,70 @@ namespace AIGame.Examples
     }
 
     /// <summary>
-    /// This state moves to the objective
+    /// Moves near the current match objective.
     /// </summary>
     public class MoveToObjective : MoveToPosition
     {
-        public MoveToObjective(ExampleAI parent,params ExampleAIState[] substates) : base(parent, "MoveToObjective", substates)
-        {
+        /// <summary>
+        /// Creates the state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        /// <param name="substates">Optional substates.</param>
+        public MoveToObjective(ExampleAI parent, params ExampleAIState[] substates)
+            : base(parent, "MoveToObjective", substates) { }
 
-        }
-
+        /// <inheritdoc/>
         public override void Enter()
         {
             hasReachedDestination = false;
             Vector2 spread = UnityEngine.Random.insideUnitCircle.normalized * UnityEngine.Random.Range(2f, 10f);
-            Vector3 controlPointOffset = new Vector3(spread.x, 0f, spread.y);
-            currentDestination = GameManager.Instance.Objective.transform.position + controlPointOffset;
+            Vector3 offset = new(spread.x, 0f, spread.y);
+            currentDestination = GameManager.Instance.Objective.transform.position + offset;
             parent.MoveTo(currentDestination);
-
             base.Enter();
         }
     }
 
     /// <summary>
-    /// State for being engaged in combat
+    /// State for engaging visible enemies.
     /// </summary>
     public class Combat : ExampleAIState
     {
-
-
+        /// <summary>
+        /// Raised when there are no visible enemies.
+        /// </summary>
         public event Action NoMoreEnemies;
 
-        public Combat(ExampleAI parent, params ExampleAIState[] substates) : base(parent, "Combat", substates)
-        {
-        }
+        /// <summary>
+        /// Creates the state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        /// <param name="substates">Optional substates.</param>
+        public Combat(ExampleAI parent, params ExampleAIState[] substates)
+            : base(parent, "Combat", substates) { }
 
+        /// <inheritdoc/>
         public override void Enter()
         {
             parent.NavMeshAgent.isStopped = true;
 
-            // 1) Nothing to do if no enemies
             if (parent.GetVisibleEnemiesSnapshot().Count == 0)
                 return;
 
-            // 2) Pick the first visible enemy
             parent.RefreshOrAcquireTarget();
-
             parent.StopMoving();
-
             base.Enter();
         }
 
+        /// <inheritdoc/>
         public override void Execute()
         {
-
             if (!parent.CurrentTarget.HasValue)
             {
                 if (parent.GetVisibleEnemiesSnapshot().Count > 0)
-                {
                     parent.RefreshOrAcquireTarget();
-                }
                 else
                 {
-                    Debug.Log("No more enemies");
                     NoMoreEnemies?.Invoke();
                     return;
                 }
@@ -223,28 +225,37 @@ namespace AIGame.Examples
             base.Execute();
         }
 
+        /// <inheritdoc/>
         public override void Exit()
         {
             parent.RemoveTarget();
-
             base.Exit();
         }
     }
 
-
     /// <summary>
-    /// Moves around the objective to protect it
+    /// Patrols around the objective by moving to random nearby offsets.
     /// </summary>
     public class ProtectObjective : ExampleAIState
     {
+        /// <summary>Current patrol destination.</summary>
         private Vector3 currentDestination;
+
+        /// <summary>Arrival threshold for patrol hops.</summary>
         private const float ARRIVAL_THRESHOLD = 0.5f;
+
+        /// <summary>Whether a destination has been set.</summary>
         private bool hasDestination = false;
 
-        public ProtectObjective(ExampleAI parent, params ExampleAIState[] substates) : base(parent, "ProtectObjective", substates)
-        {
-        }
+        /// <summary>
+        /// Creates the state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        /// <param name="substates">Optional substates.</param>
+        public ProtectObjective(ExampleAI parent, params ExampleAIState[] substates)
+            : base(parent, "ProtectObjective", substates) { }
 
+        /// <inheritdoc/>
         public override void Execute()
         {
             if (!hasDestination ||
@@ -252,9 +263,8 @@ namespace AIGame.Examples
                  parent.NavMeshAgent.remainingDistance <= ARRIVAL_THRESHOLD))
             {
                 Vector2 spread = UnityEngine.Random.insideUnitCircle.normalized * UnityEngine.Random.Range(2f, 5f);
-                Vector3 controlPointOffset = new Vector3(spread.x, 0f, spread.y);
-
-                currentDestination = GameManager.Instance.Objective.transform.position + controlPointOffset;
+                Vector3 offset = new(spread.x, 0f, spread.y);
+                currentDestination = GameManager.Instance.Objective.transform.position + offset;
                 parent.MoveTo(currentDestination);
                 hasDestination = true;
             }
@@ -262,93 +272,107 @@ namespace AIGame.Examples
             base.Execute();
         }
 
+        /// <inheritdoc/>
         public override void Exit()
         {
             hasDestination = false;
             base.Exit();
-
         }
     }
 
     /// <summary>
-    /// Strafe from left to right
+    /// Strafes left/right around current position.
     /// </summary>
     public class Strafe : ExampleAIState
     {
+        /// <summary>Current strafe direction flag.</summary>
         private bool movingRight = true;
 
-        public Strafe(ExampleAI parent) : base(parent, "Strafe")
-        {
-        }
+        /// <summary>
+        /// Creates the state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        public Strafe(ExampleAI parent) : base(parent, "Strafe") { }
 
+        /// <inheritdoc/>
         public override void Execute()
         {
             if (!parent.NavMeshAgent.pathPending &&
                 parent.NavMeshAgent.remainingDistance <= parent.NavMeshAgent.stoppingDistance)
             {
                 movingRight = !movingRight;
-
                 Vector3 offset = (movingRight ? parent.transform.right : -parent.transform.right) * 5f;
                 parent.StrafeTo(parent.transform.position + offset);
             }
 
             base.Execute();
         }
-
     }
 
     /// <summary>
-    /// Dodge if an unfriendly ball gets close
+    /// Performs a dodge when a hostile ball is detected nearby.
     /// </summary>
     public class Dodge : ExampleAIState
     {
+        /// <summary>Last detected hostile ball.</summary>
         private Ball ball;
 
-        public Dodge(ExampleAI parent) : base(parent, "Dodge")
-        {
-        }
+        /// <summary>
+        /// Creates the state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        public Dodge(ExampleAI parent) : base(parent, "Dodge") { }
 
+        /// <inheritdoc/>
         public override void Execute()
         {
             if (ball != null)
             {
                 float distance = Vector3.Distance(parent.transform.position, ball.transform.position);
-
                 if (distance <= 20)
                 {
-                    parent.StartDodge((UnityEngine.Random.value > 0.5f) ? parent.transform.right : -parent.transform.right);
+                    parent.StartDodge(UnityEngine.Random.value > 0.5f ? parent.transform.right : -parent.transform.right);
                     ball = null;
                 }
             }
-            
+
             base.Execute();
         }
 
+        /// <summary>
+        /// AI hook for ball sightings.
+        /// </summary>
+        /// <param name="ball">Detected ball.</param>
         public void OnBallDetected(Ball ball)
         {
             this.ball = ball;
         }
-
-
     }
 
     /// <summary>
-    /// Follow an enemy
+    /// Follows a visible enemy and stops at preferred engagement range.
     /// </summary>
     public class FollowEnemy : ExampleAIState
     {
+        /// <summary>Whether the agent has issued a stop after entering range.</summary>
         private bool stopped = false;
 
-        public FollowEnemy(ExampleAI parent, params ExampleAIState[] substates) : base(parent, "Follow", substates)
-        {
-        }
+        /// <summary>
+        /// Creates the state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        /// <param name="substates">Optional substates.</param>
+        public FollowEnemy(ExampleAI parent, params ExampleAIState[] substates)
+            : base(parent, "Follow", substates) { }
 
+        /// <inheritdoc/>
         public override void Enter()
         {
             parent.RefreshOrAcquireTarget();
             base.Enter();
         }
 
+        /// <inheritdoc/>
         public override void Execute()
         {
             if (!parent.TryGetTarget(out var target))
@@ -358,101 +382,110 @@ namespace AIGame.Examples
             Vector3 tgtPos = target.Position;
 
             float dist = Vector3.Distance(myPos, tgtPos);
-            float desired = parent.ProjectileRange;   // your preferred engagement distance
-            float buffer = 0.25f;                    // tiny hysteresis to avoid jitter
+            float desired = parent.ProjectileRange;
+            float buffer = 0.25f;
 
             if (dist > desired + buffer)
             {
-                // Move closer but stop at desired range (you had a -3 offset; keep if intentional)
                 Vector3 dir = (tgtPos - myPos).normalized;
-                Vector3 stopPos = tgtPos - dir * (desired - 3f); // keep your -3 tweak
+                Vector3 stopPos = tgtPos - dir * (desired - 3f); // preserves original tweak
                 parent.MoveTo(stopPos);
                 stopped = false;
             }
-            else
+            else if (!stopped)
             {
-                // We are in range — stop once
-                if (!stopped)
-                {
-                    parent.StopMoving();
-                    stopped = true;
-                }
+                parent.StopMoving();
+                stopped = true;
             }
 
             base.Execute();
         }
-
-
-
-
-
     }
 
     /// <summary>
-    /// Move to an enemy flag zone
+    /// Moves toward the opposing team's flag zone.
     /// </summary>
     public class MoveToEnemyZone : MoveToPosition
     {
-        public MoveToEnemyZone(ExampleAI parent, params ExampleAIState[] substates) : base(parent, "Move to enemy flag zone", substates)
-        {
+        /// <summary>
+        /// Creates the state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        /// <param name="substates">Optional substates.</param>
+        public MoveToEnemyZone(ExampleAI parent, params ExampleAIState[] substates)
+            : base(parent, "Move to enemy flag zone", substates) { }
 
-        }
-
+        /// <inheritdoc/>
         public override void Enter()
         {
-            currentDestination = parent.MyDetectable.TeamID == Team.Red ? CaptureTheFlag.Instance.BlueFlagZone.transform.position : CaptureTheFlag.Instance.RedFlagZone.transform.position;
+            currentDestination = parent.MyDetectable.TeamID == Team.Red
+                ? CaptureTheFlag.Instance.BlueFlagZone.transform.position
+                : CaptureTheFlag.Instance.RedFlagZone.transform.position;
+
             parent.MoveTo(currentDestination);
             base.Enter();
         }
     }
 
-
     /// <summary>
-    /// Move to a friendly flag zone
+    /// Moves toward the friendly team's flag zone.
     /// </summary>
     public class MoveToFriendlyZone : MoveToPosition
     {
-        public MoveToFriendlyZone(ExampleAI parent, params ExampleAIState[] substates) : base(parent, "Move to friendly flag zone", substates)
-        {
+        /// <summary>
+        /// Creates the state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        /// <param name="substates">Optional substates.</param>
+        public MoveToFriendlyZone(ExampleAI parent, params ExampleAIState[] substates)
+            : base(parent, "Move to friendly flag zone", substates) { }
 
-        }
-
+        /// <inheritdoc/>
         public override void Enter()
         {
-            currentDestination = parent.MyDetectable.TeamID != Team.Red ? CaptureTheFlag.Instance.BlueFlagZone.transform.position : CaptureTheFlag.Instance.RedFlagZone.transform.position;
+            currentDestination = parent.MyDetectable.TeamID != Team.Red
+                ? CaptureTheFlag.Instance.BlueFlagZone.transform.position
+                : CaptureTheFlag.Instance.RedFlagZone.transform.position;
+
             parent.MoveTo(currentDestination);
             base.Enter();
         }
     }
 
     /// <summary>
-    /// Move to the friendly flag
+    /// Follows the friendly flag's current position.
     /// </summary>
     public class FollowFriendlyFlag : MoveToPosition
     {
+        /// <summary>Cached friendly flag.</summary>
         private Flag flag;
 
-        public FollowFriendlyFlag(ExampleAI parent, params ExampleAIState[] substates) : base(parent, "Follow friendly flag", substates)
-        {
+        /// <summary>
+        /// Creates the state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        /// <param name="substates">Optional substates.</param>
+        public FollowFriendlyFlag(ExampleAI parent, params ExampleAIState[] substates)
+            : base(parent, "Follow friendly flag", substates) { }
 
-        }
-
+        /// <inheritdoc/>
         public override void Enter()
         {
+            flag = parent.MyDetectable.TeamID != Team.Red
+                ? CaptureTheFlag.Instance.BlueFlag
+                : CaptureTheFlag.Instance.RedFlag;
 
-            flag = parent.MyDetectable.TeamID != Team.Red ? CaptureTheFlag.Instance.BlueFlag : CaptureTheFlag.Instance.RedFlag;
             currentDestination = flag.transform.position;
             parent.MoveTo(currentDestination);
             base.Enter();
         }
 
+        /// <inheritdoc/>
         public override void Execute()
         {
             if (!parent.NavMeshAgent.pathPending &&
-            parent.NavMeshAgent.remainingDistance <= ARRIVAL_THRESHOLD)
-            {
+                parent.NavMeshAgent.remainingDistance <= ARRIVAL_THRESHOLD)
                 return;
-            }
 
             currentDestination = flag.transform.position;
             parent.MoveTo(currentDestination);
@@ -461,33 +494,52 @@ namespace AIGame.Examples
     }
 
     /// <summary>
-    /// Move to the enemy flag
+    /// Moves to the current position of the enemy flag.
     /// </summary>
     public class MoveToEnemyFlag : MoveToPosition
     {
-        public MoveToEnemyFlag(ExampleAI parent, params ExampleAIState[] substates) : base(parent, "Move to enemy flag", substates)
-        {
+        /// <summary>
+        /// Creates the state.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        /// <param name="substates">Optional substates.</param>
+        public MoveToEnemyFlag(ExampleAI parent, params ExampleAIState[] substates)
+            : base(parent, "Move to enemy flag", substates) { }
 
-        }
-
+        /// <inheritdoc/>
         public override void Enter()
         {
-            currentDestination = parent.MyDetectable.TeamID == Team.Red ? CaptureTheFlag.Instance.BlueFlag.transform.position : CaptureTheFlag.Instance.RedFlag.transform.position;
+            currentDestination = parent.MyDetectable.TeamID == Team.Red
+                ? CaptureTheFlag.Instance.BlueFlag.transform.position
+                : CaptureTheFlag.Instance.RedFlag.transform.position;
+
             parent.MoveTo(currentDestination);
             base.Enter();
         }
     }
 
     /// <summary>
-    /// Chase the enemy flag carrier
+    /// Chases the current enemy flag carrier if visible; attacks when in range.
     /// </summary>
     public class ChaseEnemyCarrier : MoveToPosition
     {
-        private int enemyCarrierId = -1;                 // stable id to chase
-        private PerceivedAgent? enemyCarrier;            // refreshed per frame
+        /// <summary>Stable ID of the enemy carrier to chase; -1 if none.</summary>
+        private int enemyCarrierId = -1;
+
+        /// <summary>Per-frame snapshot of the target carrier.</summary>
+        private PerceivedAgent? enemyCarrier;
+
+        /// <summary>Reference to own team's flag.</summary>
         private Flag myFlag;
+
+        /// <summary>Reference to enemy team's flag.</summary>
         private Flag enemyFlag;
 
+        /// <summary>
+        /// Creates the state and resolves team flags.
+        /// </summary>
+        /// <param name="parent">Owning AI.</param>
+        /// <param name="substates">Optional substates.</param>
         public ChaseEnemyCarrier(ExampleAI parent, params ExampleAIState[] substates)
             : base(parent, "Chase Enemy Carrier", substates)
         {
@@ -498,11 +550,11 @@ namespace AIGame.Examples
             enemyFlag = (myFlag == blueFlag) ? redFlag : blueFlag;
         }
 
+        /// <inheritdoc/>
         public override void Enter()
         {
             base.Enter();
 
-            // Lock in who we're chasing by ID (may be -1 if nobody has it)
             var carrier = myFlag.FlagCarrier;
             enemyCarrierId = carrier != null ? carrier.MyAgent.AgentID : -1;
 
@@ -515,49 +567,44 @@ namespace AIGame.Examples
             }
         }
 
+        /// <inheritdoc/>
         public override void Execute()
         {
-            // Refresh snapshot for this frame (may become null if not visible)
             RefreshEnemyCarrierSnapshot();
-
-            if (!enemyCarrier.HasValue)
-                return;
+            if (!enemyCarrier.HasValue) return;
 
             var carrierPos = enemyCarrier.Value.Position;
-
             float distance = Vector3.Distance(parent.transform.position, carrierPos);
 
             if (distance <= parent.ProjectileRange)
             {
                 parent.StopMoving();
                 parent.FaceTarget(carrierPos);
-                parent.ThrowBallAt(enemyCarrier.Value); // your ThrowBallAt(PerceivedAgent) version
+                parent.ThrowBallAt(enemyCarrier.Value);
             }
-            else
+            else if (Vector3.Distance(currentDestination, carrierPos) > 0.5f)
             {
-                // Repath only if it moved meaningfully
-                if (Vector3.Distance(currentDestination, carrierPos) > 0.5f)
-                {
-                    currentDestination = carrierPos;
-                    parent.MoveTo(currentDestination);
-                }
+                currentDestination = carrierPos;
+                parent.MoveTo(currentDestination);
             }
 
             base.Execute();
         }
 
+        /// <summary>
+        /// Updates the cached snapshot of the enemy carrier if visible this frame.
+        /// </summary>
         private void RefreshEnemyCarrierSnapshot()
         {
             if (enemyCarrierId < 0) { enemyCarrier = null; return; }
 
-            // Look for that ID in the current snapshot
             PerceivedAgent? found = null;
             var vis = parent.GetVisibleEnemiesSnapshot();
             for (int i = 0; i < vis.Count; i++)
             {
                 if (vis[i].Id == enemyCarrierId) { found = vis[i]; break; }
             }
-            enemyCarrier = found; // may be null if not visible this frame
+            enemyCarrier = found;
         }
     }
 }
