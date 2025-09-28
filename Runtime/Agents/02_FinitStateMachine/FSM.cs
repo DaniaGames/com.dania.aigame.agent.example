@@ -57,8 +57,6 @@ namespace AIGame.Examples.FSM
 
             if (currentState != null)
                 currentState.Execute();
-
-            Debug.Log(currentState.Name);
         }
 
         /// <summary>
