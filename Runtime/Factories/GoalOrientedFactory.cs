@@ -5,31 +5,19 @@ using UnityEngine;
 namespace AIGame.Examples.GoalOriented
 {
     /// <summary>
-    /// Factory that spawns EasyAI agents.
-    /// Creates a full team of agents using the EasyAI behaviour.
+    /// Factory that spawns GoalOrientedAI agents.
+    /// Creates a full team of agents using the GoalOrientedAI behaviour.
     /// </summary>
-    [CreateAssetMenu(menuName = "Factories/GoalOrientedFactory")]
     [RegisterFactory("05. Goal Oriented")]
     class GoalOrientedFactory : AgentFactory
     {
         /// <summary>
-        /// Creates a set of EasyAI agents for one team.
+        /// Returns the agent types this factory wants to spawn.
         /// </summary>
-        /// <param name="agentPrefab">The prefab used for each agent.</param>
-        /// <param name="teamSize">The number of agents per team.</param>
-        /// <returns>An array containing the spawned EasyAI agents.</returns>
-        protected override BaseAI[] CreateAgents(GameObject agentPrefab, int teamSize)
+        /// <returns>An array containing the GoalOrientedAI type.</returns>
+        protected override System.Type[] GetAgentTypes()
         {
-            // Allocate an array for the number of agents per team
-            var created = new BaseAI[teamSize];
-
-            // Instantiate agents and attach EasyAI behaviour
-            for (int i = 0; i < created.Length; i++)
-            {
-                created[i] = GameObject.Instantiate(agentPrefab).AddComponent<GoalOrientedAI>();
-            }
-
-            return created;
+            return new System.Type[] { typeof(GoalOrientedAI) };
         }
     }
 }
