@@ -238,11 +238,11 @@ namespace AIGame.Examples.ModelBased
 
         private bool HasReachedDestination()
         {
-            if (NavMeshAgent.remainingDistance <= ARRIVAL_THRESHOLD)
+            if (GetRemainingDistance() <= ARRIVAL_THRESHOLD)
             {
                 return true;
             }
-            else if (!NavMeshAgent.pathPending && !NavMeshAgent.hasPath)
+            else if (!IsPathPending() && !HasPath())
             {
                 return true;
             }

@@ -122,17 +122,16 @@ namespace AIGame.Examples.FSM
         /// <inheritdoc/>
         public override void Execute()
         {
-            var agent = parent.NavMeshAgent;
-            if (!parent.IsAlive || !agent.enabled || !agent.isOnNavMesh)
+            if (!parent.IsAlive || !parent.IsNavMeshAgentEnabled() || !parent.IsOnNavMesh())
                 return;
 
             if (!hasReachedDestination)
             {
                 bool arrived = false;
 
-                if (agent.remainingDistance <= ARRIVAL_THRESHOLD)
+                if (parent.GetRemainingDistance() <= ARRIVAL_THRESHOLD)
                     arrived = true;
-                else if (!agent.pathPending && !agent.hasPath &&
+                else if (!parent.IsPathPending() && !parent.HasPath() &&
                          Vector3.Distance(parent.transform.position, currentDestination) <= ARRIVAL_THRESHOLD)
                     arrived = true;
 
@@ -193,7 +192,7 @@ namespace AIGame.Examples.FSM
         /// <inheritdoc/>
         public override void Enter()
         {
-            parent.NavMeshAgent.isStopped = true;
+            parent.SetStopped(true);
 
             if (parent.GetVisibleEnemiesSnapshot().Count == 0)
                 return;
@@ -260,8 +259,8 @@ namespace AIGame.Examples.FSM
         public override void Execute()
         {
             if (!hasDestination ||
-                (!parent.NavMeshAgent.pathPending &&
-                 parent.NavMeshAgent.remainingDistance <= ARRIVAL_THRESHOLD))
+                (!parent.IsPathPending() &&
+                 parent.GetRemainingDistance() <= ARRIVAL_THRESHOLD))
             {
                 Vector2 spread = UnityEngine.Random.insideUnitCircle.normalized * UnityEngine.Random.Range(2f, 5f);
                 Vector3 offset = new(spread.x, 0f, spread.y);
@@ -298,8 +297,8 @@ namespace AIGame.Examples.FSM
         /// <inheritdoc/>
         public override void Execute()
         {
-            if (!parent.NavMeshAgent.pathPending &&
-                parent.NavMeshAgent.remainingDistance <= parent.NavMeshAgent.stoppingDistance)
+            if (!parent.IsPathPending() &&
+                parent.GetRemainingDistance() <= 0.5f) // Using typical stopping distance
             {
                 movingRight = !movingRight;
                 Vector3 offset = (movingRight ? parent.transform.right : -parent.transform.right) * 5f;

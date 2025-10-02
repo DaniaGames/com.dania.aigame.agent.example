@@ -72,7 +72,7 @@ namespace AIGame.Examples.ReactiveAI
 
         protected override void ExecuteAI()
         {
-            if (!IsAlive || !NavMeshAgent.enabled || !NavMeshAgent.isOnNavMesh)
+            if (!IsAlive)
                 return;
 
             // Prioritize combat over everything
@@ -131,11 +131,7 @@ namespace AIGame.Examples.ReactiveAI
             {
                 inCombat = false;
 
-                // Ensure NavMeshAgent is properly re-enabled
-                if (NavMeshAgent.isStopped)
-                {
-                    NavMeshAgent.isStopped = false;
-                }
+                // Movement should resume automatically via MoveTo() calls
 
                 if (fc.HasFlag)
                 {
@@ -155,7 +151,6 @@ namespace AIGame.Examples.ReactiveAI
         private void OnEnemyDetected()
         {
             wander = false;
-            NavMeshAgent.isStopped = true;
 
             if (GetVisibleEnemiesSnapshot().Count == 0)
             {
@@ -376,11 +371,11 @@ namespace AIGame.Examples.ReactiveAI
         private bool HasReachedDestination()
         {
 
-            if (NavMeshAgent.remainingDistance <= ARRIVAL_THRESHOLD)
+            if (GetRemainingDistance() <= ARRIVAL_THRESHOLD)
             {
                 return true;
             }
-            else if (!NavMeshAgent.pathPending && !NavMeshAgent.hasPath && Vector3.Distance(transform.position, currentDestination) <= ARRIVAL_THRESHOLD)
+            else if (!IsPathPending() && !HasPath() && Vector3.Distance(transform.position, currentDestination) <= ARRIVAL_THRESHOLD)
             {
                 return true;
             }
