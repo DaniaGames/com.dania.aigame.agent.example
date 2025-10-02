@@ -1,7 +1,7 @@
 {
   "name": "com.dania.aigame.agent.example",
   "displayName": "AI Game - Example AIs",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "unity": "2021.3",
   "description": "Example AI",
   "author": { "name": "KERA" }
